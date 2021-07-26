@@ -1,5 +1,8 @@
 # xmlreader
-Golang xml reader
+Golang small xml reader
+
+
+It can parse node name, node value and attribute
 
 
 ```
@@ -11,5 +14,16 @@ Golang xml reader
     fmt.Println(d.Name)
     fmt.Println(d.HasValue())
     fmt.Println(d.Value)
+
+```
+
+
+For more feature, you can use standart lib encoding/xml.
+
+```
+
+decoder := xml.NewDecoder(xmlFile)
+
+t, _ := decoder.Token()
 
 ```
