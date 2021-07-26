@@ -1,5 +1,5 @@
 # xmlreader
-Golang small xml reader
+Small xml reader
 
 
 It can parse node name, node value and attribute
