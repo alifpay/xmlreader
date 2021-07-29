@@ -104,8 +104,6 @@ func (d *Decoder) GetAttribute(name string) (string, error) {
 		case ' ':
 			buf = make([]byte, 0)
 			continue
-		case '?', '/':
-			return "", ErrNotFound
 		case '>':
 			d.end = true
 			return "", ErrNotFound
@@ -145,12 +143,25 @@ func (d *Decoder) HasValue() bool {
 			buf = make([]byte, 0)
 			continue
 		case '<':
-			if has && len(buf) > 0 {
-				d.Value = string(buf)
+			if ln := len(buf); has && ln > 0 {
+				sp := true
+				ln--
+				for sp {
+					switch buf[ln] {
+					case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
+						ln--
+					default:
+						sp = false
+					}
+				}
+				d.Value = string(buf[:ln+1])
 				return true
 			}
-		case '?', '/':
-			return false
+		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
+			if len(buf) == 0 {
+				continue
+			}
+			buf = append(buf, b)
 		default:
 			buf = append(buf, b)
 		}
