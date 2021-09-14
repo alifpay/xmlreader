@@ -12,11 +12,14 @@ func TestRead(t *testing.T) {
    </multiRef>`)
 	d := New(r)
 
-	fmt.Println(d.Read())
-	fmt.Println(d.Name)
-	fmt.Println(d.GetAttribute("id"))
-	fmt.Println(d.HasValue())
-	fmt.Println(d.Value)
+	for d.Read() {
+		fmt.Println(d.Name)
+		fmt.Println(d.GetAttribute("id"))
+		fmt.Println(d.HasValue())
+		fmt.Println(d.Value)
+	}
+
+	fmt.Println(d.ReadAll())
 }
 
 func BenchmarkFileRead(b *testing.B) {

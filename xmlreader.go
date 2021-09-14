@@ -1,7 +1,6 @@
 package xmlreader
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -12,15 +11,18 @@ var (
 )
 
 type Decoder struct {
-	br    *bufio.Reader
+	rd    io.Reader
 	Name  string
 	Value string
 	eof   bool
 	end   bool
+	bf    []byte
+	bt    []byte
 }
 
+//new instance of xml reader
 func New(r io.Reader) *Decoder {
-	return &Decoder{br: bufio.NewReader(r)}
+	return &Decoder{rd: r, bf: make([]byte, 4096), bt: make([]byte, 1)}
 }
 
 //Read, reads the next node from the stream
@@ -35,7 +37,7 @@ func (d *Decoder) Read() bool {
 	var node bool
 	nm := make([]byte, 0)
 	for {
-		b, err := d.br.ReadByte()
+		_, err := d.rd.Read(d.bt)
 		if err == io.EOF {
 			d.eof = true
 			return false
@@ -44,8 +46,9 @@ func (d *Decoder) Read() bool {
 			fmt.Println(err)
 			continue
 		}
+		d.bf = append(d.bf, d.bt...)
 
-		switch b {
+		switch d.bt[0] {
 		case '<':
 			node = true
 		case ' ':
@@ -61,7 +64,7 @@ func (d *Decoder) Read() bool {
 			}
 		default:
 			if node {
-				nm = append(nm, b)
+				nm = append(nm, d.bt...)
 			}
 		}
 	}
@@ -81,7 +84,7 @@ func (d *Decoder) GetAttribute(name string) (string, error) {
 	var attr bool
 	buf := make([]byte, 0)
 	for {
-		b, err := d.br.ReadByte()
+		_, err := d.rd.Read(d.bt)
 		if err == io.EOF {
 			d.eof = true
 			return "", err
@@ -89,8 +92,9 @@ func (d *Decoder) GetAttribute(name string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		d.bf = append(d.bf, d.bt...)
 
-		switch b {
+		switch d.bt[0] {
 		case '=':
 			if name == string(buf) {
 				attr = true
@@ -108,7 +112,7 @@ func (d *Decoder) GetAttribute(name string) (string, error) {
 			d.end = true
 			return "", ErrNotFound
 		default:
-			buf = append(buf, b)
+			buf = append(buf, d.bt...)
 		}
 	}
 }
@@ -123,12 +127,12 @@ func (d *Decoder) HasValue() bool {
 	}
 	d.Value = ""
 	var has bool
-	buf := make([]byte, 0)
+	v := make([]byte, 0)
 	if d.end {
 		has = true
 	}
 	for {
-		b, err := d.br.ReadByte()
+		_, err := d.rd.Read(d.bt)
 		if err == io.EOF {
 			d.eof = true
 			return false
@@ -136,34 +140,39 @@ func (d *Decoder) HasValue() bool {
 		if err != nil {
 			return false
 		}
+		d.bf = append(d.bf, d.bt...)
 
-		switch b {
+		switch d.bt[0] {
 		case '>':
 			has = true
-			buf = make([]byte, 0)
+			v = make([]byte, 0)
 			continue
 		case '<':
-			if ln := len(buf); has && ln > 0 {
+			if ln := len(v); has && ln > 0 {
 				sp := true
 				ln--
 				for sp {
-					switch buf[ln] {
+					switch v[ln] {
 					case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
 						ln--
 					default:
 						sp = false
 					}
 				}
-				d.Value = string(buf[:ln+1])
+				d.Value = string(v[:ln+1])
 				return true
 			}
 		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
-			if len(buf) == 0 {
+			if len(v) == 0 {
 				continue
 			}
-			buf = append(buf, b)
+			v = append(v, d.bt...)
 		default:
-			buf = append(buf, b)
+			v = append(v, d.bt...)
 		}
 	}
+}
+
+func (d *Decoder) ReadAll() string {
+	return string(d.bf)
 }
