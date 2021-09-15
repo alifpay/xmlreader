@@ -22,7 +22,7 @@ type Decoder struct {
 
 //new instance of xml reader
 func New(r io.Reader) *Decoder {
-	return &Decoder{rd: r, bf: make([]byte, 4096), bt: make([]byte, 1)}
+	return &Decoder{rd: r, bf: make([]byte, 0, 512), bt: make([]byte, 1)}
 }
 
 //Read, reads the next node from the stream
@@ -174,5 +174,18 @@ func (d *Decoder) HasValue() bool {
 }
 
 func (d *Decoder) ReadAll() string {
+	if !d.eof {
+		for {
+			if len(d.bf) == cap(d.bf) {
+				// Add more capacity (let append pick how much).
+				d.bf = append(d.bf, 0)[:len(d.bf)]
+			}
+			n, err := d.rd.Read(d.bf[len(d.bf):cap(d.bf)])
+			d.bf = d.bf[:len(d.bf)+n]
+			if err != nil {
+				break
+			}
+		}
+	}
 	return string(d.bf)
 }
